@@ -1,0 +1,928 @@
+
+use projectFinal;
+create table catalogs
+(
+    catalogId     int primary key auto_increment,
+    catalogName   varchar(50) not null unique,
+    descriptions  text,
+    parentId      int,
+    catalogStatus bit default (1)
+);
+create table products
+(
+    productId     int primary key auto_increment,
+    productName   varchar(100) not null unique,
+    tittle        varchar(100),
+    productImg    text         not null,
+    descriptions  text,
+    importPrice   float,
+    catalogId     int          not null,
+    creatDate     DATE default (CURRENT_DATE()),
+    productStatus int  default (0),
+    foreign key (catalogId) references catalogs (catalogId)
+);
+alter table products
+    add column discount int ;
+create table colors
+(
+    colorId     int primary key auto_increment,
+    colorName   varchar(50) not null,
+    colorHex    varchar(10),
+    colorStatus bit default (1)
+);
+alter table colors
+    modify colorName varchar(50) not null unique;
+create table sizes
+(
+    sizeId     int auto_increment primary key,
+    sizeName   varchar(5) unique,
+    sizeStatus bit default (1)
+);
+create table images
+(
+    imagesId     int primary key auto_increment,
+    imagesLinks  varchar(50) not null,
+    imagesStatus bit default (1),
+    productId    int         not null,
+    foreign key (productId) references products (productId)
+);
+create table product_detail
+(
+    productDetailId int primary key auto_increment,
+    quantity        int not null,
+    exportPrice     float,
+    discountDetail        int,
+    productId       int not null,
+    sizeId          int not null,
+    colorId         int not null,
+    detailStatus    bit default (1),
+    foreign key (productId) references products (productId),
+    foreign key (colorId) references colors (colorId),
+    foreign key (sizeId) references sizes (sizeId)
+);
+create table users
+(
+    userId        int primary key auto_increment,
+    fullName      varchar(30) not null,
+    birthDate     DATE,
+    gender        bit,
+    avatar        text,
+    email         text,
+    addressUser   text,
+    closeCustumer int default (0),
+    phoneUser     int,
+    userName      varchar(30) not null,
+    passWords     varchar(30) not null,
+    permission    int default (0)
+);
+create table cuppons
+(
+    cuponId     varchar(10) primary key,
+    cuponStatus bit default (1)
+);
+create table carts
+(
+    cartId      int primary key auto_increment,
+    userId      int         not null,
+    totalAmount float      ,
+    creatDate   Date ,
+    endDate     Date,
+    note        varchar(100),
+    oderStatus  int,
+    email       text,
+    discount    int,
+    phoneUser   varchar(10),
+    address     text,
+    fullName    varchar(30),
+    cuponId     varchar(10),
+    cartStatus  int ,
+    foreign key (cuponId) references cuppons (cuponId),
+    foreign key (userId) references users (userId)
+);
+alter table carts
+add column cartName varchar(50);
+create table cartDetail
+(
+    cartDetailId    int primary key auto_increment,
+    cartId          int   not null,
+    priceCurent     float not null,
+    productDetailId int   not null,
+    quantity        int   not null,
+    foreign key (cartId) references carts (cartId),
+    foreign key (productDetailId) references product_detail (productDetailId)
+);
+alter table cartDetail
+add column cartDetailStatus bit default (1);
+create table commentProduct
+(
+    commentProId     int primary key auto_increment,
+    commentProText   text,
+    userId           int not null,
+    productId        int not null,
+    commentProStatus bit default (1),
+    foreign key (userId) references users (userId),
+    foreign key (productId) references products (productId)
+);
+create table wishlist
+(
+    wishlistId int primary key auto_increment,
+    userId     int not null,
+    productId  int not null,
+    foreign key (userId) references users (userId),
+    foreign key (productId) references products (productId)
+);
+alter table wishlist
+    add column wishStatus bit default (1);
+create table stars
+(
+    starsId   int primary key auto_increment,
+    starPoint int,
+    userId    int not null,
+    productId int not null,
+    foreign key (userId) references users (userId),
+    foreign key (productId) references products (productId)
+);
+alter table stars
+    add column starStatus bit default (1);
+create table blogs
+(
+    blogId        int primary key auto_increment,
+    userId        int  not null,
+    tittleBlog    text not null,
+    imgBlogLink   text,
+    content       text,
+    creatDateBlog DATE,
+    blogStatus    bit default (1),
+    foreign key (userId) references users (userId)
+);
+create table commentBlogs
+(
+    commentBlogsId    int primary key auto_increment,
+    commentBlogText   text,
+    commentBlogStatus bit default (1),
+    blogId            int not null,
+    userId            int not null,
+    foreign key (userId) references users (userId),
+    foreign key (blogId) references blogs (blogId)
+);
+create table contacts
+(
+    contactId      int primary key auto_increment,
+    addressContact text        not null,
+    phoneContact   int         not null,
+    emailContact   varchar(50) not null
+);
+
+# drop table contacts;
+# drop table commentBlogs;
+# drop table blogs;
+# drop table stars;
+# drop table wishlist;
+# drop table commentProduct;
+# drop table carts;
+# drop table cartDetail;
+# drop table users;
+# drop table product_detail;
+# drop table sizes;
+# drop table colors;
+# drop table images;
+# drop table products;
+# drop table catalogs;
+delimiter &&
+create procedure getAllCatalog()
+begin
+    select child.catalogId,
+           child.catalogName,
+           child.descriptions,
+           child.catalogStatus,
+           child.parentId,
+           parent.catalogName as ParentName
+    from catalogs child
+             left join catalogs parent on child.parentId = parent.catalogId;
+end &&;
+delimiter &&
+create procedure insertCatalog(IN cName varchar(50), IN cDes varchar(100), IN cParentId int)
+begin
+    insert into catalogs(catalogName, descriptions, parentId)
+    values (cName, cDes, cParentId);
+end &&;
+delimiter &&
+create procedure updateCatalog(in cId int, IN cName varchar(50), IN cDes varchar(100), IN cParentId int, in cStatus bit)
+begin
+    update catalogs
+    Set catalogName=cName,
+        descriptions=cDes,
+        catalogStatus=cStatus,
+        parentId=cParentId
+    where catalogId = cId;
+    if (cStatus = 1) then
+        call onCatalog(cId);
+    ELSE
+        call deleteCatalog(cId);
+    end if;
+end &&;
+delimiter &&
+create procedure getCatalogById(in cId int)
+begin
+    select *
+    from catalogs c
+    where catalogId = cId;
+end &&;
+delimiter   &&
+create procedure deleteCatalog(in cId int)
+begin
+    update catalogs c
+    SET catalogStatus=0
+    WHERE c.catalogId in (WITH recursive TEMPDATA(catId)
+                                             AS (SELECT a.catalogId
+                                                 FROM catalogs a
+                                                 WHERE catalogId = cId
+                                                 union all
+                                                 select child.catalogId
+                                                 from TEMPDATA p
+                                                          inner join catalogs child on p.catId = child.parentId)
+                          SELECT *
+                          FROM TEMPDATA);
+end &&;
+delimiter &&
+create procedure onCatalog(in cId int)
+begin
+    update catalogs c
+    SET catalogStatus=1
+    WHERE c.catalogId in (WITH recursive TEMPDATA(catId)
+                                             AS (SELECT a.catalogId
+                                                 FROM catalogs a
+                                                 WHERE catalogId = cId
+                                                 union all
+                                                 select child.catalogId
+                                                 from TEMPDATA p
+                                                          inner join catalogs child on p.catId = child.parentId)
+                          SELECT *
+                          FROM TEMPDATA);
+end &&;
+delimiter &&
+create procedure getCatalogByName(IN cName varchar(50))
+begin
+    select child.catalogId,
+           child.catalogName,
+           child.descriptions,
+           child.catalogStatus,
+           child.parentId,
+           parent.catalogName as ParentName
+    from catalogs child
+             left join catalogs parent on child.parentId = parent.catalogId
+    where child.catalogName like concat('%', cName, '%');
+end &&;
+delimiter &&
+create procedure getCatalogForCreat()
+begin
+    select cat.catalogId, cat.catalogName
+    from catalogs cat
+    where cat.catalogStatus = 1
+      and cat.catalogId not in (select c.catalogId
+                                from catalogs c
+                                         inner join products p on c.catalogId = p.catalogId);
+end &&;
+delimiter &&
+create procedure getCatalogForUpdate()
+begin
+    select cat.catalogId, cat.catalogName
+    from catalogs cat
+    where cat.catalogStatus = 1
+      and cat.catalogId not in (select c.catalogId
+                                from catalogs c
+                                         inner join products p on c.catalogId = p.catalogId);
+end &&;
+delimiter &&
+create procedure getCatalogFordelete(in cName varchar(50))
+begin
+    select cat.catalogId, cat.catalogName
+    from catalogs cat
+    where cat.catalogName = cName;
+end &&;
+delimiter &&
+create procedure searchChild(IN cId int)
+begin
+    WITH recursive TEMPDATA(catId, catName)
+                       AS (SELECT a.catalogId,
+                                  a.catalogName
+                           FROM catalogs a
+                           WHERE catalogId = cId
+                           union all
+                           select child.catalogId, child.catalogName
+                           from TEMPDATA p
+                                    inner join catalogs child on p.catId = child.parentId)
+    SELECT *
+    FROM TEMPDATA;
+end &&;
+call insertCatalog('Men', 'Thời trang phái mạnh', null);
+call insertCatalog('Women', 'Thời trang phụ nữ', null);
+call insertCatalog('Kid', 'Thời trang trẻ con', null);
+select *
+from catalogs;
+delimiter &&
+drop procedure if exists getCatalogCreatProduct;
+create procedure getCatalogCreatProduct()
+begin
+    select a.catalogId cId ,a.catalogName cName ,b.catalogName parentName
+        from ( select catalogId,catalogName,parentId
+               from catalogs child
+               where child.catalogId not in (select p.catalogId
+                                             from catalogs p inner join catalogs c on p.catalogId=c.parentId
+                                             group by p.catalogId )) a left join catalogs b on a.parentId=b.catalogId;
+end &&;
+
+# procedure product.
+delimiter &&
+drop procedure if exists findAllProduct;
+create procedure findAllProduct()
+begin
+    select pro.productId,
+           pro.productName,
+           pro.tittle,
+           pro.productImg,
+           pro.creatDate,
+           pro.importPrice,
+           pro.AvgExport,
+           pro.Quantity,
+           avg(s.starPoint)      AvgStar,
+           COUNT(s.productId) as reviews,
+           pro.productStatus,
+           pro.catalogId,
+           c.catalogName parent
+    from stars s
+             right join (select p.productId,
+                                p.productName,
+                                p.tittle,
+                                p.productImg,
+                                p.creatDate,
+                                p.importPrice,
+                                avg(pd.exportPrice) as AvgExport,
+                                sum(pd.quantity)    as Quantity,
+                                p.productStatus,
+                                p.catalogId
+                         from products p
+                                  left join product_detail pd on p.productId = pd.productId
+                         group by p.productId) as pro on s.productId = pro.productId join catalogs c on c.catalogId = pro.productId
+    group by pro.productId;
+end &&;
+
+delimiter &&
+create procedure saveProduct(in pName varchar(100), in pTitle varchar(100), in pImg text, in pDes text, in pPrice float,
+                             in pCatId int, in pDate date, in pDiscount int, OUT pId int)
+begin
+    insert into products(productName, tittle, productImg, descriptions, importPrice, catalogId, creatDate, discount)
+    values (pName, pTitle, pImg, pDes, pPrice, pCatId, pDate, pDiscount);
+    select LAST_INSERT_ID() into pId;
+end &&
+delimiter &&
+create procedure saveImageProduct(in pId int, in imgLink varchar(50))
+begin
+    insert into images(productId, imagesLinks) values (pId, imgLink);
+end &&;
+
+#  Sizes product
+
+delimiter &&
+drop procedure if exists searchSizeByName;
+create procedure searchSizeByName(in sName varchar(50))
+begin
+    select *
+    from sizes
+    where sizeName like concat('%', sName, '')
+    order by sizeStatus DESC ;
+end &&;
+delimiter &&
+drop procedure if exists finAllSize;
+create procedure finAllSize()
+begin
+    select * from sizes
+    order by sizeStatus DESC ;
+end &&;
+create procedure saveSize(in sName varchar(50))
+begin
+    insert into sizes(sizeName) values (sName);
+end &&;
+create procedure updateSize(in sId int, in sName varchar(50), in sStatus bit)
+begin
+    update sizes
+    set sizeName=sName,
+        sizeStatus=sStatus
+    where sizeId = sId;
+end &&;
+delimiter &&
+drop procedure if exists deleteSize;
+create procedure deleteSize(in sId int)
+begin
+    update sizes
+    set sizeStatus=0
+    where sizeId = sId;
+end &&;
+create procedure findById(in sId int)
+begin
+    select sizeId
+    from sizes
+    where sizeId = sId;
+end &&;
+
+delimiter &&
+create procedure findSizeForCreatProduct()
+begin
+    select *
+    from sizes
+    where sizeStatus = 1;
+end &&
+
+# Color for product
+
+delimiter &&
+create procedure searchColorById(in cId int)
+begin
+    select *
+    from colors
+    where colorId = cId
+    ;
+end &&
+delimiter &&
+drop procedure if exists finAllColor;
+create procedure finAllColor()
+begin
+    select * from colors
+    order by colorStatus DESC ;
+end &&;
+delimiter &&
+create procedure saveColor(in cName varchar(50), in cHex varchar(10))
+begin
+    insert into colors(colorName, colorHex) values (cName, cHex);
+end &&;
+delimiter &&
+create procedure updateColor(in cId int, in cName varchar(50), in cHex varchar(10), in cStatus bit)
+begin
+    update colors
+    set colorName=cName,
+        colorHex=cHex,
+        colorStatus=cStatus
+    where colorId = cId;
+end &&;
+delimiter &&
+drop procedure if exists findColorForCreatProduct;
+create procedure findColorForCreatProduct()
+begin
+    select *
+    from colors
+    where colorStatus = 1;
+end &&
+delimiter &&
+drop procedure if exists searchColorByName;
+create procedure searchColorByName(in cName varchar(50))
+begin
+    select * from colors
+       where colors.colorName like concat('%', cName, '%')
+    order by colorStatus DESC
+    ;
+end &&
+delimiter &&
+create procedure getLastIndexColor()
+begin
+    select *
+    from colors
+    where colorId = (select max(colorId) from colors);
+end &&
+
+delimiter &&
+create procedure getLastIndexSize()
+begin
+    select *
+    from sizes
+    where sizeId = (select max(sizeId) from sizes);
+end &&
+delimiter &&
+drop procedure if exists deleteColor;
+create procedure deleteColor(in cId int)
+begin
+    update colors
+    set colorStatus=0
+    where colorId = cId;
+end &&;
+delimiter &&
+drop procedure if exists deleteSize;
+create procedure deleteSize(in sId int)
+begin
+    update sizes
+    set sizeStatus =0
+    where sizeId = sId;
+end &&
+delimiter &&
+drop procedure if exists findProductByName;
+create procedure findProductByName(in pName varchar(100))
+begin
+    select pro.productId,
+           pro.productName,
+           pro.tittle,
+           pro.productImg,
+           pro.creatDate,
+           pro.importPrice,
+
+           pro.AvgExport,
+           pro.Quantity,
+           avg(s.starPoint)      AvgStar,
+           COUNT(s.productId) as reviews,
+           pro.productStatus,
+           pro.catalogId,
+           c.catalogName parent,
+    pro.descriptions
+    from stars s
+             right join (select p.productId,
+                                p.productName,
+                                p.tittle,
+                                p.productImg,
+                                p.creatDate,
+                                p.importPrice,
+                                avg(pd.exportPrice) as AvgExport,
+                                sum(pd.quantity)    as Quantity,
+                                p.productStatus,
+                                p.catalogId,
+                                p.descriptions
+                         from products p
+                                  left join product_detail pd on p.productId = pd.productId
+                         group by p.productId) as pro on s.productId = pro.productId join catalogs c on c.catalogId = pro.productId
+    where   pro.productName like concat('%',pName,'%')
+    group by pro.productId;
+end &&;
+delimiter &&
+drop procedure  if exists searchProductById;
+create procedure searchProductById(in pId int)
+begin
+    select pro.productId,
+           pro.productName,
+           pro.tittle,
+           pro.productImg,
+           pro.creatDate,
+           pro.importPrice,
+           pro.AvgExport,
+           pro.Quantity,
+           avg(s.starPoint)      AvgStar,
+           COUNT(s.productId) as reviews,
+           pro.productStatus,
+           pro.catalogId,
+           pro.discount,
+           pro.descriptions
+    from stars s
+             right join (select p.productId,
+                                p.productName,
+                                p.tittle,
+                                p.productImg,
+                                p.creatDate,
+                                p.importPrice,
+                                avg(pd.exportPrice) as AvgExport,
+                                sum(pd.quantity)    as Quantity,
+                                p.productStatus,
+                                p.catalogId,
+                                p.discount,
+                         p.descriptions
+                         from products p
+                                  left join product_detail pd on p.productId = pd.productId
+                         group by p.productId) as pro on s.productId = pro.productId
+    where   pro.productId=pId
+    group by pro.productId;
+end &&;
+delimiter &&
+create procedure deleteProduct(in pId int)
+begin
+    update products
+    set productStatus=2
+    where productId = pId;
+    update images im
+    set imagesStatus=0
+    where im.productId = pId;
+    update product_detail
+    set detailStatus=0
+    where productId = pId;
+    update stars
+    set starStatus=0
+    where productId = pId;
+    update commentProduct
+    set commentProStatus=0
+    where productId = pId;
+    update wishlist
+    set wishStatus=0
+    where productId = pId;
+end &&;
+delimiter &&
+drop procedure if exists updateProduct;
+create procedure updateProduct(in pId int, in pName varchar(100), in pTitle varchar(100), in pImg text, in pDes text,
+                               in pPrice float, in pCatId int, in pDate date, in pDiscount int, in pStatus int)
+begin
+    update products
+    set productName=pName,
+        tittle= pTitle,
+        productImg= pImg,
+        descriptions= pDes,
+        importPrice=pPrice,
+        discount=pDiscount,
+        catalogId=pCatId,
+        creatDate=pDate,
+        productStatus=pStatus
+    where productId = pId;
+    if(pStatus=2) then
+        update images im
+        set imagesStatus=0
+        where im.productId = pId;
+        update product_detail
+        set detailStatus=0
+        where productId = pId;
+        update stars
+        set starStatus=0
+        where productId = pId;
+        update commentProduct
+        set commentProStatus=0
+        where productId = pId;
+        update wishlist
+        set wishStatus=0
+        where productId = pId;
+    end if;
+end &&
+delimiter &&
+drop procedure if exists deleteSubImg;
+create procedure deleteSubImg(in subId int)
+begin
+
+    delete from images
+    where imagesId = subId;
+end &&;
+select *
+from products;
+delimiter &&
+drop procedure if exists getLastIndexProduct;
+create procedure getLastIndexProduct()
+begin
+    select productId ,productName
+    from products
+    where productId = (select max(productId) from products);
+end &&;
+delimiter &&
+drop procedure if exists saveProductDetail;
+create procedure saveProductDetail(in pdQuantity int, in pdExprice float,in pdDis int, in pdProId int,in pdSizeId int, in pdColorId int)
+begin
+    if (( select count(p.productDetailId)
+          from product_detail p
+          where
+                  p.productId = pdProId and p.sizeId=pdSizeId and p.colorId=pdColorId)>0) then
+        update product_detail
+            set quantity =quantity+ pdQuantity,
+                exportPrice=pdExprice,
+                discountDetail=pdDis
+        where  productId = pdProId and sizeId=pdSizeId and colorId=pdColorId;
+        ELSE
+            insert into product_detail ( quantity, exportPrice, discountDetail, productId, sizeId, colorId)
+            values (pdQuantity,pdExprice,pdDis,pdProId,pdSizeId,pdColorId);
+    end if ;
+end &&;
+delimiter &&
+create procedure getLastIndexProductDetail()
+begin
+    select p.productName parentname ,detail.productDetailId detailid,detail.quantity detailquantity, exportPrice,detail.discountDetail discountdetail,sizeName,colorName, detail.detailStatus status
+        from products p inner join (select *
+                            from product_detail
+                            where productDetailId = (select max(productDetailId) from product_detail)) as detail on p.productId=detail.productId join colors on detail.colorId=colors.colorId join sizes on detail.sizeId=sizes.sizeId;
+
+end &&
+delimiter &&
+drop procedure if exists getDetailByPRoId;
+create procedure getDetailByPRoId(in pId int)
+begin
+    select p.productName parentName, detail.productDetailId detailid, detail.quantity detailquantity, detail.exportPrice exportPrice,detail.discountDetail discountdetail, s.sizeName sizeName, c.colorName colorName, detail.detailStatus status, c.colorId colorId,s.sizeId sizeId
+        from (select * from product_detail where productId =pId) detail inner join colors c on detail.colorId=c.colorId  inner join sizes s on detail.sizeId= s.sizeId inner join products p on detail.productId=p.productId;
+    end &&
+delimiter  &&
+drop procedure if exists getImgByProductId;
+create procedure getImgByProductId(in pId int)
+begin
+    select *  from images where productId=pId;
+end &&
+delimiter &&
+create procedure deleteSubImgById(in pId int)
+begin
+    delete from images
+        where productId = pId;
+end &&;
+select c.catalogName parent, pro.productId, pro.productName,pro.tittle,pro.productImg,pro.creatDate,pro.importPrice, pro.AvgExport, pro.Quantity, avg(s.starPoint) AvgStar, COUNT(s.productId) as reviews,pro.productStatus,pro.catalogId
+from stars s right join (select p.productId, p.productName,p.tittle,p.productImg,p.creatDate,p.importPrice, avg(pd.exportPrice) as AvgExport , sum(pd.quantity)as Quantity, p.productStatus,p.catalogId
+                         from products p left join product_detail pd on p.productId = pd.productId group by p.productId) as pro on s.productId=pro.productId inner join catalogs c on pro.catalogId=c.catalogId
+group by pro.productId;
+select pro.productId,
+       pro.productName,
+       pro.tittle,
+       pro.productImg,
+       pro.creatDate,
+       pro.importPrice,
+       pro.AvgExport,
+       pro.Quantity,
+       avg(s.starPoint)      AvgStar,
+       COUNT(s.productId) as reviews,
+       pro.productStatus,
+       pro.catalogId,
+       c.catalogName as parent
+from stars s
+         right join (select p.productId,
+                            p.productName,
+                            p.tittle,
+                            p.productImg,
+                            p.creatDate,
+                            p.importPrice,
+                            avg(pd.exportPrice) as AvgExport,
+                            sum(pd.quantity)    as Quantity,
+                            p.productStatus,
+                            p.catalogId
+                     from products p
+                              left join product_detail pd on p.productId = pd.productId
+                     group by p.productId) as pro on s.productId = pro.productId inner join catalogs c on pro.catalogId=c.catalogId
+where   pro.productName like concat('%', '3h21', '%')
+group by pro.productId;
+select cat.catalogId,cat.catalogName
+from catalogs cat where cat.catalogStatus =1 and cat.catalogId not in (  select c.catalogId
+                                                                         from catalogs c inner join products p on c.parentId = p.catalogId);
+
+select  catalogName,catalogId
+    from catalogs child
+where child.catalogId not in (select p.catalogId
+                              from catalogs p inner join catalogs c on p.catalogId=c.parentId
+                              group by p.catalogId );
+
+select p.catalogName, p.catalogId
+from catalogs p join catalogs c on p.catalogId=c.catalogId
+where p.catalogId not in (c.parentId);
+delimiter &&
+drop procedure if exists findProductByCatId;
+create procedure findProductByCatId(in cId int)
+begin
+    select pro.productId,
+           pro.productName,
+           pro.tittle,
+           pro.productImg,
+           pro.creatDate,
+           pro.importPrice,
+           pro.AvgExport,
+           pro.Quantity,
+           avg(s.starPoint)      AvgStar,
+           COUNT(s.productId) as reviews,
+           pro.productStatus,
+           pro.catalogId
+    from stars s
+             right join (select p.productId,
+                                p.productName,
+                                p.tittle,
+                                p.productImg,
+                                p.creatDate,
+                                p.importPrice,
+                                avg(pd.exportPrice) as AvgExport,
+                                sum(pd.quantity)    as Quantity,
+                                p.productStatus,
+                                p.catalogId
+                         from products p
+                                  left join product_detail pd on p.productId = pd.productId
+                         group by p.productId) as pro on s.productId = pro.productId
+    where   pro.catalogId  in  (WITH recursive TEMPDATA(catId, catName)
+                                                   AS (SELECT a.catalogId,
+                                                              a.catalogName
+                                                       FROM catalogs a
+                                                       WHERE catalogId = cId
+                                                       union all
+                                                       select child.catalogId, child.catalogName
+                                                       from TEMPDATA p
+                                                                inner join catalogs child on p.catId = child.parentId)
+                                SELECT catId
+                                FROM TEMPDATA )
+    group by pro.productId;
+end &&
+delimiter &&
+create procedure findRootCat()
+begin
+    select catalogId,catalogName
+        from catalogs
+            where parentId=0;
+end &&;
+delimiter &&
+create procedure getColorByProductId(in pId int)
+begin
+    select * from colors
+        where colorId in(select colorId
+                         from product_detail
+                         where productId=pId
+                         group by colorId);
+end &&;
+delimiter  &&
+create procedure getSizeByProductId(in pId int)
+begin
+    select * from sizes
+    where sizeId in(select product_detail.sizeId
+                     from product_detail
+                     where productId=pId
+                     group by sizes.sizeId);
+end &&;
+DELIMITER &&
+drop procedure if exists saveUser;
+create procedure saveUser(IN newFullName varchar(30), in bDate date,in uGender bit, IN newEmail text, IN newAddress text,IN newPhone varchar(10), IN userLogin varchar(30), IN uPassword varchar(30), out uId int)
+BEGIN
+    insert into users(fullName, birthDate, gender, email, addressUser, phoneUser, userName, passWords)
+    values(newFullName,bDate,uGender,newEmail,newAddress,newPhone,userLogin,uPassword);
+    select LAST_INSERT_ID() into uId;
+end &&;
+delimiter &&
+create procedure findAllUser()
+begin
+    select * from users
+        where permission=0;
+end &&
+DELIMITER &&
+create procedure proc_login(IN userNameLogin varchar(50), IN userPassLogin varchar(50))
+BEGIN
+    select * from users where userName = userNameLogin and passWords = userPassLogin;
+end &&;
+DELIMITER &&
+create procedure updateUser(in uId int,IN newFullName varchar(30), in bDate date,in uGender bit, IN newEmail text, IN newAddress text,IN newPhone varchar(10), IN uPassword varchar(30))
+BEGIN
+    update users
+        set fullName = newFullName,
+            birthDate=bDate,
+            gender=uGender,
+            email=newEmail,
+            addressUser= newAddress,
+            phoneUser=newPhone,
+            passWords= uPassword
+    where userId= uId;
+end &&;
+delimiter &&
+drop procedure if exists lockUser;
+create procedure lockUser(in uId int)
+begin
+    update  users
+
+        set userStatus = (!userStatus)
+    where userId=uId;
+end &&
+delimiter &&
+create procedure searchById(in uId int)
+begin
+    select *
+        from users
+            where userId=uId;
+end &&;
+delimiter &&
+create procedure  checkLogin(in userLogin varchar(30), in pass varchar(30))
+begin
+    select * from users
+        where userName=userLogin and passWords=pass;
+end &&;
+delimiter &&
+drop procedure if exists getCartDetailByLastCart;
+create procedure getCartDetailByLastCart(in uId int)
+begin
+   select cdt.productDetailId , cdt.cartDetailId, cdt.quantity,cdt.priceCurent, cdt.cartId,c.colorName,s.sizeName,p.productName, p.productImg
+       from product_detail pd join (select * from cartDetail
+                                    where cartId=(select max(cartId)
+                                                  from carts
+                                                  where userId=uId) and cartDetail.cartDetailStatus=1) as cdt on pd.productDetailId=cdt.productDetailId join sizes s on pd.sizeId = s.sizeId join colors c on pd.colorId = c.colorId join products p on p.productId = pd.productId;
+
+   end &&
+
+delimiter &&
+drop procedure if exists saveCart;
+create procedure saveCart(in uId int)
+begin
+    insert into carts(userId)
+        value (uId);
+end &&;
+delimiter &&
+create procedure getLastCartByUerId(in uId int)
+begin
+    select * from carts
+    where cartId=(select max(cartId)
+                  from carts
+                  where userId=uId);
+end &&;
+delimiter  &&
+drop procedure if exists saveCartDetail;
+create procedure saveCartDetail( in cId int, in priceC float ,in pdId int,in cQuantity int)
+begin
+    insert into cartDetail( cartId, priceCurent, productDetailId, quantity)
+        values (  cId , priceC, pdId,cQuantity);
+end &&;
+delimiter &&
+drop procedure if exists updateCartDetail;
+    create procedure updateCartDetail(in pdId int, in pQuantity int)
+begin
+    update cartDetail
+        set quantity=pQuantity
+    where cartDetailId=pdId;
+end &&;
+delimiter &&
+create procedure deleteCartDetail(in cId int)
+begin
+    update cartDetail
+    set cartDetailStatus=0
+    where cartDetailId=cId;
+end &&;
+
+
+
