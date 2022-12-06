@@ -923,6 +923,36 @@ begin
     set cartDetailStatus=0
     where cartDetailId=cId;
 end &&;
-
+delimiter &&
+drop procedure if exists updateCart;
+create procedure updateCart(in cId int, in ctotal float, in cdate date, in cNote varchar(100), in cmail text,
+ in cphone varchar(10), in caddress text, in cUername varchar(30),in cCartName varchar(50), in cStatus int )
+begin
+    update carts
+    set totalAmount=ctotal,
+        creatDate=cdate,
+        note=cNote,
+        email=cmail,
+        phoneUser=cphone,
+        address=caddress,
+        fullName=cUername,
+        cartName=cCartName,
+        cartStatus=cStatus
+    where cartId=cId;
+end &&;
+delimiter &&
+create procedure getListCartWaitConfirm()
+begin
+    select *
+        from carts ;
+end &&;
+delimiter &&
+drop procedure if exists getallListCart;
+create procedure getallListCart()
+begin
+    select *
+    from carts
+    where cartStatus not in (0);
+end &&;
 
 
